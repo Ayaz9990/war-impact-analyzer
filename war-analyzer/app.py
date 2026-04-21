@@ -1670,3 +1670,9 @@ if __name__ == "__main__":
     print(f"🚀  War Impact Commodity Analyzer → http://localhost:{port}")
     print(f"📊  Pages: Dashboard | Commodities | Price Trends | War Events | News | Predict")
     app.run(debug=True, host="0.0.0.0", port=port)
+
+import os
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
