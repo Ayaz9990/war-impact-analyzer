@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}ML Prediction — War Impact Analyzer{% endblock %}
+{% block breadcrumb %}ml-prediction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">ML Price Prediction</h2>
+    <p class="page-subtitle">Linear Regression model trained on historical INR commodity prices</p>
+  </div>
+  <div class="page-actions">
+    <span class="tag-pill tag-green"><i class="bi bi-cpu-fill me-1"></i>AI Powered</span>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="chart-card mb-4">
+  <div class="chart-header">
+    <div class="chart-title">Configure Prediction</div>
+  </div>
+  <div class="p-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Select Commodity</label>
+        <select class="form-select dark-select" id="pred-commodity">
+          <option value="Crude Oil">🛢️ Crude Oil</option>
+          <option value="Gold">🥇 Gold</option>
+          <option value="Wheat">🌾 Wheat</option>
+          <option value="Petrol">⛽ Petrol</option>
+          <option value="Diesel">🚛 Diesel</option>
+          <option value="Silver">🥈 Silver</option>
+          <option value="Rice">🍚 Rice</option>
+          <option value="Edible Oil">🫙 Edible Oil</option>
+          <option value="Natural Gas">🔥 Natural Gas</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Forecast Quarters</label>
+        <select class="form-select dark-select" id="pred-steps">
+          <option value="2">2 Quarters (6 months)</option>
+          <option value="4" selected>4 Quarters (1 year)</option>
+          <option value="6">6 Quarters (18 months)</option>
+          <option value="8">8 Quarters (2 years)</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button class="btn-primary-custom w-100" id="run-prediction">
+          <i class="bi bi-cpu me-1"></i> Run Prediction
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Insight Banner -->
+<div id="insight-banner" class="insight-banner d-none mb-4"></div>
+
+<!-- Prediction Chart -->
+<div class="chart-card mb-4">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title" id="pred-chart-title">Prediction Chart</div>
+      <div class="chart-subtitle">Historical data + forecasted values (dashed)</div>
+    </div>
+    <div id="pred-badge" class="chart-badge d-none"></div>
+  </div>
+  <div class="chart-body" style="height:380px">
+    <canvas id="predChart"></canvas>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="mini-stat-card">
+      <div class="mini-stat-label">Current Price</div>
+      <div class="mini-stat-value text-primary" id="pred-current">--</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="mini-stat-card">
+      <div class="mini-stat-label">Predicted (End)</div>
+      <div class="mini-stat-value text-warning" id="pred-final">--</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="mini-stat-card">
+      <div class="mini-stat-label">Trend Slope</div>
+      <div class="mini-stat-value" id="pred-slope">--</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="mini-stat-card">
+      <div class="mini-stat-label">Forecast Horizon</div>
+      <div class="mini-stat-value text-info" id="pred-horizon">--</div>
+    </div>
+  </div>
+</div>
+
+<!-- Forecast Table -->
+<div class="table-card mb-4">
+  <div class="section-header mb-3">
+    <h5><i class="bi bi-table me-2"></i>Forecast Values (INR)</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Predicted Price (INR)</th><th>Change from Current</th><th>Signal</th></tr>
+      </thead>
+      <tbody id="forecast-tbody">
+        <tr><td colspan="5" class="text-center text-muted py-3">Run prediction to see results</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- How It Works -->
+<div class="section-card">
+  <div class="section-header mb-3">
+    <h5><i class="bi bi-info-circle me-2"></i>How the Model Works</h5>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="how-it-card">
+        <div class="how-it-icon">📊</div>
+        <div class="how-it-title">Data Collection</div>
+        <div class="how-it-text">Historical commodity prices from 2021–2025 are stored in SQLite database. USD prices are converted live to INR.</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="how-it-card">
+        <div class="how-it-icon">🧮</div>
+        <div class="how-it-title">Linear Regression</div>
+        <div class="how-it-text">The model fits a straight trend line through all historical data using Ordinary Least Squares (OLS) — no ML libraries needed.</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="how-it-card">
+        <div class="how-it-icon">🔮</div>
+        <div class="how-it-title">Forecasting</div>
+        <div class="how-it-text">The fitted line is extended forward in quarterly steps to estimate future prices. Results should be used as indicative only.</div>
+      </div>
+    </div>
+  </div>
+  <div class="alert-note mt-3">
+    <i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>
+    <strong>Disclaimer:</strong> Predictions are based on simple linear regression and do not account for war escalations, policy changes, or sudden shocks. For educational use only.
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let predChart;
+
+document.getElementById('run-prediction').addEventListener('click', runPrediction);
+
+// Auto-run on page load
+window.addEventListener('load', runPrediction);
+
+async function runPrediction() {
+  const commodity = document.getElementById('pred-commodity').value;
+  const steps     = document.getElementById('pred-steps').value;
+
+  const btn = document.getElementById('run-prediction');
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Running…';
+  btn.disabled  = true;
+
+  try {
+    const d = await fetch(`/api/predict?commodity=${encodeURIComponent(commodity)}&steps=${steps}`).then(r => r.json());
+    if (d.error) {
+      showToast(d.error, 'error');
+      return;
+    }
+    renderPrediction(d, commodity);
+  } catch(e) {
+    showToast('Prediction failed: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = '<i class="bi bi-cpu me-1"></i> Run Prediction';
+    btn.disabled  = false;
+  }
+}
+
+function renderPrediction(d, commodity) {
+  // Update title & badge
+  document.getElementById('pred-chart-title').textContent = `${commodity} — Historical + Forecast (INR)`;
+  const lastHist = d.historical[d.historical.length - 1].price_inr;
+  const lastPred = d.predictions[d.predictions.length - 1].predicted_inr;
+
+  document.getElementById('pred-badge').textContent = `${d.unit}`;
+  document.getElementById('pred-badge').classList.remove('d-none');
+
+  // Insight banner
+  const banner = document.getElementById('insight-banner');
+  banner.innerHTML = `<i class="bi bi-lightbulb-fill me-2 text-warning"></i>${d.insight}`;
+  banner.classList.remove('d-none');
+
+  // Mini stats
+  document.getElementById('pred-current').textContent  = `₹${lastHist.toLocaleString('en-IN')}`;
+  document.getElementById('pred-final').textContent    = `₹${lastPred.toLocaleString('en-IN')}`;
+  document.getElementById('pred-slope').textContent    = d.slope > 0 ? `↑ ${d.slope}` : `↓ ${d.slope}`;
+  document.getElementById('pred-slope').className      = `mini-stat-value ${d.slope > 0 ? 'text-danger' : 'text-success'}`;
+  document.getElementById('pred-horizon').textContent  = `${d.predictions.length * 3} Months`;
+
+  // Chart
+  const histLabels = d.historical.map(h => h.date);
+  const histVals   = d.historical.map(h => h.price_inr);
+  const predLabels = d.predictions.map(p => p.date);
+  const predVals   = d.predictions.map(p => p.predicted_inr);
+
+  const allLabels = [...histLabels, ...predLabels];
+
+  // Historical data padded with nulls for pred range, vice versa
+  const histFull = [...histVals, ...new Array(predLabels.length).fill(null)];
+  const predFull = [...new Array(histLabels.length - 1).fill(null), histVals[histVals.length - 1], ...predVals];
+
+  if (predChart) predChart.destroy();
+
+  const ctx = document.getElementById('predChart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 380);
+  gradient.addColorStop(0,   'rgba(59,130,246,0.2)');
+  gradient.addColorStop(1,   'rgba(59,130,246,0.0)');
+
+  predChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label: `${commodity} Historical`,
+          data: histFull,
+          borderColor: '#3b82f6',
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          pointRadius: 3,
+          tension: 0.3,
+          fill: true,
+          spanGaps: false,
+        },
+        {
+          label: `${commodity} Forecast`,
+          data: predFull,
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245,158,11,0.05)',
+          borderWidth: 2.5,
+          borderDash: [8, 4],
+          pointRadius: 5,
+          pointBackgroundColor: '#f59e0b',
+          pointBorderColor: '#0d1a2b',
+          pointBorderWidth: 2,
+          tension: 0.3,
+          fill: false,
+          spanGaps: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { usePointStyle: true, padding: 20 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.raw !== null ? `₹${ctx.raw.toLocaleString('en-IN')} ${d.unit}` : 'N/A'
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { maxRotation: 45 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { callback: v => '₹' + v.toLocaleString('en-IN') }
+        }
+      }
+    }
+  });
+
+  // Forecast table
+  const tbody = document.getElementById('forecast-tbody');
+  const baseInr = lastHist;
+  tbody.innerHTML = d.predictions.map((p, i) => {
+    const chg    = ((p.predicted_inr - baseInr) / baseInr * 100).toFixed(1);
+    const isUp   = chg >= 0;
+    const signal = isUp ? '<span class="badge bg-danger">📈 BUY HEDGE</span>' : '<span class="badge bg-success">📉 SELL HEDGE</span>';
+    return `
+      <tr>
+        <td class="text-muted">${i + 1}</td>
+        <td class="font-mono">${p.date}</td>
+        <td class="font-mono text-warning">₹${p.predicted_inr.toLocaleString('en-IN')}</td>
+        <td class="${isUp ? 'text-danger' : 'text-success'} font-mono">${isUp ? '+' : ''}${chg}%</td>
+        <td>${signal}</td>
+      </tr>
+    `;
+  }).join('');
+}
+</script>
+{% endblock %}

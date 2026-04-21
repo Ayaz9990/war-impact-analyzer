@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Commodities — War Impact Analyzer{% endblock %}
+{% block breadcrumb %}commodities{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Commodities</h2>
+    <p class="page-subtitle">All tracked commodities with latest INR prices</p>
+  </div>
+  <div class="page-actions">
+    <button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addModal">
+      <i class="bi bi-plus-lg me-1"></i> Add Commodity
+    </button>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar mb-4">
+  <div class="filter-group">
+    <label>Category:</label>
+    <select class="form-select form-select-sm dark-select" id="cat-filter" style="width:180px">
+      <option value="">All Categories</option>
+      <option value="Energy">Energy</option>
+      <option value="Precious Metals">Precious Metals</option>
+      <option value="Agriculture">Agriculture</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Search:</label>
+    <input type="text" class="form-control form-control-sm dark-input" id="search-input" placeholder="Search commodity…" style="width:200px">
+  </div>
+</div>
+
+<!-- Commodity Table -->
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="data-table" id="commodity-table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Commodity</th>
+          <th>Category</th>
+          <th>Latest Price (INR)</th>
+          <th>Unit</th>
+          <th>Change</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="commodity-tbody">
+        <tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Comparison Chart -->
+<div class="chart-card mt-4">
+  <div class="chart-header">
+    <div class="chart-title">Price Comparison — Before vs After Russia-Ukraine War (Jan vs Apr 2022)</div>
+  </div>
+  <div class="chart-body">
+    <canvas id="comparisonChart" style="max-height:350px"></canvas>
+  </div>
+</div>
+
+<!-- Add Commodity Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content dark-modal">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Commodity</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-control dark-input" id="new-name" placeholder="e.g. Aluminium">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Category</label>
+          <select class="form-select dark-select" id="new-category">
+            <option value="Energy">Energy</option>
+            <option value="Precious Metals">Precious Metals</option>
+            <option value="Agriculture">Agriculture</option>
+            <option value="Metals">Metals</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Unit</label>
+          <input type="text" class="form-control dark-input" id="new-unit" placeholder="e.g. INR/Kg">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary-custom" id="save-commodity">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allCommodities = [];
+let compChart;
+
+async function loadCommodities() {
+  const cat = document.getElementById('cat-filter').value;
+  const url = cat ? `/api/prices/latest` : `/api/prices/latest`;
+  const d = await fetch(url).then(r => r.json());
+  allCommodities = d.data;
+  renderTable(allCommodities);
+}
+
+function renderTable(rows) {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const cat    = document.getElementById('cat-filter').value;
+  const filtered = rows.filter(r => {
+    const matchCat    = !cat    || r.category === cat;
+    const matchSearch = !search || r.name.toLowerCase().includes(search);
+    return matchCat && matchSearch;
+  });
+
+  const tbody = document.getElementById('commodity-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No commodities found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => {
+    const chgClass = r.change >= 0 ? 'text-danger' : 'text-success';
+    const chgIcon  = r.change >= 0 ? '▲' : '▼';
+    return `<tr>
+      <td style="font-size:1.4rem">${r.symbol || '📦'}</td>
+      <td><strong>${r.name}</strong></td>
+      <td><span class="category-badge cat-${r.category.replace(/\s+/g,'-').toLowerCase()}">${r.category}</span></td>
+      <td class="font-mono">₹${Number(r.price_inr).toLocaleString('en-IN')}</td>
+      <td class="text-muted small">${r.unit_label}</td>
+      <td class="${chgClass} font-mono">${chgIcon} ${Math.abs(r.change)}%</td>
+      <td class="text-muted small">${r.date}</td>
+      <td>
+        <button class="btn-icon-danger" onclick="deleteCommodity(${r.id}, '${r.name}')" title="Delete">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteCommodity(id, name) {
+  if (!confirm(`Delete ${name}? This will also remove all price history.`)) return;
+  const res = await fetch(`/api/commodities/${id}`, {method:'DELETE'});
+  if (res.ok) {
+    showToast(`${name} deleted`, 'success');
+    loadCommodities();
+    loadComparisonChart();
+  } else {
+    showToast('Delete failed', 'error');
+  }
+}
+
+async function loadComparisonChart() {
+  const d = await fetch('/api/prices/comparison?before=2022-01&after=2022-04').then(r=>r.json());
+  const labels = d.data.map(x => x.commodity);
+  const before = d.data.map(x => x.before);
+  const after  = d.data.map(x => x.after);
+
+  if (compChart) compChart.destroy();
+  compChart = new Chart(document.getElementById('comparisonChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Jan 2022 (Pre-War)', data: before, backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 4 },
+        { label: 'Apr 2022 (Post-War)', data: after,  backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => `₹${ctx.raw.toLocaleString('en-IN')}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => '₹' + v.toLocaleString('en-IN') } }
+      }
+    }
+  });
+}
+
+// Save new commodity
+document.getElementById('save-commodity').addEventListener('click', async function() {
+  const name     = document.getElementById('new-name').value.trim();
+  const category = document.getElementById('new-category').value;
+  const unit     = document.getElementById('new-unit').value.trim() || 'INR';
+  if (!name) return showToast('Name is required', 'warning');
+
+  const res = await fetch('/api/commodities', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, category, unit, symbol:'📦'})
+  });
+  if (res.ok) {
+    showToast(`${name} added!`, 'success');
+    bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+    loadCommodities();
+  } else {
+    const err = await res.json();
+    showToast(err.error || 'Failed', 'error');
+  }
+});
+
+// Filters
+document.getElementById('cat-filter').addEventListener('change', () => renderTable(allCommodities));
+document.getElementById('search-input').addEventListener('input',  () => renderTable(allCommodities));
+
+loadCommodities();
+loadComparisonChart();
+</script>
+{% endblock %}

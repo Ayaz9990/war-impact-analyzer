@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — War Impact Analyzer{% endblock %}
+{% block breadcrumb %}dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Market Dashboard</h2>
+    <p class="page-subtitle">Real-time commodity prices in ₹ INR — India Edition</p>
+  </div>
+  <div class="page-actions">
+    <span class="tag-pill tag-blue">🌍 Russia-Ukraine</span>
+    <span class="tag-pill tag-red">⚔️ Iran-Israel-USA</span>
+  </div>
+</div>
+
+<!-- KPI Cards Row -->
+<div class="row g-3 mb-4" id="kpi-row">
+  <div class="col-xl-3 col-md-6">
+    <div class="kpi-card" id="kpi-oil">
+      <div class="kpi-icon energy">🛢️</div>
+      <div class="kpi-body">
+        <div class="kpi-label">Crude Oil</div>
+        <div class="kpi-value" id="kpi-oil-price">₹--</div>
+        <div class="kpi-unit" id="kpi-oil-unit">₹/Barrel</div>
+      </div>
+      <div class="kpi-change" id="kpi-oil-change">--</div>
+      <canvas class="kpi-sparkline" id="sparkline-oil" width="60" height="30"></canvas>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="kpi-card" id="kpi-gold">
+      <div class="kpi-icon precious">🥇</div>
+      <div class="kpi-body">
+        <div class="kpi-label">Gold</div>
+        <div class="kpi-value" id="kpi-gold-price">₹--</div>
+        <div class="kpi-unit" id="kpi-gold-unit">₹/10g</div>
+      </div>
+      <div class="kpi-change" id="kpi-gold-change">--</div>
+      <canvas class="kpi-sparkline" id="sparkline-gold" width="60" height="30"></canvas>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="kpi-card" id="kpi-wheat">
+      <div class="kpi-icon agri">🌾</div>
+      <div class="kpi-body">
+        <div class="kpi-label">Wheat</div>
+        <div class="kpi-value" id="kpi-wheat-price">₹--</div>
+        <div class="kpi-unit" id="kpi-wheat-unit">₹/Quintal</div>
+      </div>
+      <div class="kpi-change" id="kpi-wheat-change">--</div>
+      <canvas class="kpi-sparkline" id="sparkline-wheat" width="60" height="30"></canvas>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="kpi-card" id="kpi-petrol">
+      <div class="kpi-icon energy">⛽</div>
+      <div class="kpi-body">
+        <div class="kpi-label">Petrol</div>
+        <div class="kpi-value" id="kpi-petrol-price">₹--</div>
+        <div class="kpi-unit" id="kpi-petrol-unit">₹/Litre</div>
+      </div>
+      <div class="kpi-change" id="kpi-petrol-change">--</div>
+      <canvas class="kpi-sparkline" id="sparkline-petrol" width="60" height="30"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card border-red">
+      <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill text-danger"></i></div>
+      <div class="stat-info">
+        <div class="stat-number" id="stat-high">--</div>
+        <div class="stat-label">High-Impact Events</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card border-blue">
+      <div class="stat-icon"><i class="bi bi-calendar-event-fill text-primary"></i></div>
+      <div class="stat-info">
+        <div class="stat-number" id="stat-events">--</div>
+        <div class="stat-label">Total War Events</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card border-green">
+      <div class="stat-icon"><i class="bi bi-newspaper text-success"></i></div>
+      <div class="stat-info">
+        <div class="stat-number" id="stat-news">--</div>
+        <div class="stat-label">News Articles</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Commodity Price Trends (INR)</div>
+          <div class="chart-subtitle">Price vs Time — War Impact Visible</div>
+        </div>
+        <div class="chart-controls">
+          <select class="form-select form-select-sm dark-select" id="trend-commodity">
+            <option value="Crude Oil">🛢️ Crude Oil</option>
+            <option value="Gold">🥇 Gold</option>
+            <option value="Wheat">🌾 Wheat</option>
+            <option value="Petrol">⛽ Petrol</option>
+            <option value="Diesel">🚛 Diesel</option>
+            <option value="Silver">🥈 Silver</option>
+            <option value="Rice">🍚 Rice</option>
+            <option value="Edible Oil">🫙 Edible Oil</option>
+          </select>
+        </div>
+      </div>
+      <div class="chart-body">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="chart-card h-100">
+      <div class="chart-header">
+        <div class="chart-title">War Impact Summary</div>
+      </div>
+      <div class="chart-body">
+        <canvas id="impactChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Insights & News Row -->
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="section-card">
+      <div class="section-header">
+        <h5><i class="bi bi-lightbulb-fill text-warning me-2"></i>War Impact Insights</h5>
+      </div>
+      <div id="insights-list">
+        <div class="loading-placeholder">Loading insights…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="section-card">
+      <div class="section-header">
+        <h5><i class="bi bi-newspaper text-info me-2"></i>Latest War News</h5>
+        <a href="/news" class="btn-link-sm">View All <i class="bi bi-arrow-right"></i></a>
+      </div>
+      <div id="news-list">
+        <div class="loading-placeholder">Loading news…</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let trendChart, impactChart;
+
+// ── Load Dashboard KPIs ──────────────────────────────────────
+let previousPrices = {};
+
+async function loadDashboard() {
+  const d = await fetch('/api/dashboard').then(r=>r.json());
+  
+  function setKPI(id, data) {
+    const priceEl = document.getElementById(`kpi-${id}-price`);
+    const changeEl = document.getElementById(`kpi-${id}-change`);
+    const cardEl = document.getElementById(`kpi-${id}`);
+    
+    const currentPrice = data.price;
+    const previousPrice = previousPrices[id];
+    const changePercent = data.change;
+    
+    // Determine trend direction
+    let trendDirection = 'neutral';
+    let trendIcon = '';
+    
+    if (previousPrice !== undefined) {
+      if (currentPrice > previousPrice) {
+        trendDirection = 'up';
+        trendIcon = '📈';
+      } else if (currentPrice < previousPrice) {
+        trendDirection = 'down';
+        trendIcon = '📉';
+      }
+      
+      // Add flash animation for price change
+      if (currentPrice !== previousPrice) {
+        priceEl.classList.add('price-flash');
+        changeEl.classList.add('change-updated');
+        
+        // Remove animations after delay
+        setTimeout(() => {
+          priceEl.classList.remove('price-flash');
+          changeEl.classList.remove('change-updated');
+        }, 1500);
+        
+        // Add card highlight for change
+        cardEl.classList.add(`price-${trendDirection}`);
+        setTimeout(() => cardEl.classList.remove(`price-${trendDirection}`), 3000);
+      }
+    }
+    
+    priceEl.textContent = `₹${Number(currentPrice).toLocaleString('en-IN')}`;
+    document.getElementById(`kpi-${id}-unit`).textContent = data.unit;
+    
+    // Enhanced change display with trend icon
+    const changeText = (changePercent >= 0 ? '+' : '') + changePercent + '%';
+    const changeClass = changePercent >= 0 ? 'positive' : 'negative';
+    
+    // Add absolute change if available
+    const absChange = previousPrice ? currentPrice - previousPrice : 0;
+    const absChangeText = absChange !== 0 ? ` (${absChange >= 0 ? '+' : ''}₹${Math.abs(absChange).toFixed(2)})` : '';
+    
+    changeEl.innerHTML = `${trendIcon} ${changeText}${absChangeText}`;
+    changeEl.className = `kpi-change ${changeClass}`;
+    
+    // Store current price for next comparison
+    previousPrices[id] = currentPrice;
+  }
+
+  setKPI('oil',    d.oil);
+  setKPI('gold',   d.gold);
+  setKPI('wheat',  d.wheat);
+  setKPI('petrol', d.petrol);
+
+  document.getElementById('stat-high').textContent   = d.high_impact_events;
+  document.getElementById('stat-events').textContent = d.total_events;
+  document.getElementById('stat-news').textContent   = d.total_news;
+  
+  // Update live indicator
+  updateLiveIndicator();  
+  // Update sparklines for each commodity
+  updateSparklines();
+}
+
+// ── Sparkline Charts ──────────────────────────────────────────
+let priceHistory = {
+  oil: [],
+  gold: [],
+  wheat: [],
+  petrol: []
+};
+
+function updateSparklines() {
+  // Add current prices to history (keep last 10 points)
+  ['oil', 'gold', 'wheat', 'petrol'].forEach(commodity => {
+    const currentPrice = previousPrices[commodity];
+    if (currentPrice !== undefined) {
+      priceHistory[commodity].push(currentPrice);
+      if (priceHistory[commodity].length > 10) {
+        priceHistory[commodity].shift();
+      }
+      drawSparkline(commodity, priceHistory[commodity]);
+    }
+  });
+}
+
+function drawSparkline(commodity, data) {
+  if (data.length < 2) return;
+  
+  const canvas = document.getElementById(`sparkline-${commodity}`);
+  const ctx = canvas.getContext('2d');
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Calculate min/max for scaling
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  
+  // Draw line
+  ctx.strokeStyle = data[data.length - 1] >= data[data.length - 2] ? '#10b981' : '#ef4444';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  
+  data.forEach((price, index) => {
+    const x = (index / (data.length - 1)) * (canvas.width - 4) + 2;
+    const y = canvas.height - ((price - min) / range) * (canvas.height - 4) - 2;
+    
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  
+  ctx.stroke();
+  
+  // Add gradient fill
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, ctx.strokeStyle + '20');
+  gradient.addColorStop(1, ctx.strokeStyle + '05');
+  
+  ctx.lineTo(canvas.width - 2, canvas.height - 2);
+  ctx.lineTo(2, canvas.height - 2);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();}
+
+// ── Live Indicator ──────────────────────────────────────────
+function updateLiveIndicator() {
+  const now = new Date();
+  const timeString = now.toLocaleTimeString('en-IN', { 
+    hour12: false, 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit' 
+  });
+  
+  // Update existing live indicator or create one
+  let liveIndicator = document.getElementById('live-indicator');
+  if (!liveIndicator) {
+    liveIndicator = document.createElement('div');
+    liveIndicator.id = 'live-indicator';
+    liveIndicator.className = 'live-indicator';
+    document.querySelector('.page-header .page-actions').prepend(liveIndicator);
+  }
+  
+  liveIndicator.innerHTML = `
+    <span class="live-dot"></span>
+    <span class="live-text">LIVE</span>
+    <span class="live-time">${timeString}</span>
+  `;
+}
+
+// ── Trend Chart ──────────────────────────────────────────────
+async function loadTrendChart(commodity) {
+  const d = await fetch(`/api/prices/trends?commodity=${encodeURIComponent(commodity)}`).then(r=>r.json());
+  const labels = d.data.map(p => p.date);
+  const vals   = d.data.map(p => p.price_inr);
+
+  // Load war events for annotations
+  const evts = await fetch('/api/war-events').then(r=>r.json());
+
+  if (trendChart) trendChart.destroy();
+
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0,   'rgba(59,130,246,0.3)');
+  gradient.addColorStop(1,   'rgba(59,130,246,0.01)');
+
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: `${commodity} (${d.unit})`,
+        data: vals,
+        borderColor: '#3b82f6',
+        backgroundColor: gradient,
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointHoverRadius: 7,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `₹${ctx.raw.toLocaleString('en-IN')} ${d.unit}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { maxRotation: 45 } },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { callback: v => '₹' + v.toLocaleString('en-IN') }
+        }
+      }
+    }
+  });
+}
+
+// ── Impact Pie ───────────────────────────────────────────────
+async function loadImpactChart() {
+  const evts = await fetch('/api/war-events').then(r=>r.json());
+  const counts = {high:0, medium:0, low:0};
+  evts.data.forEach(e => counts[e.impact]++);
+
+  if (impactChart) impactChart.destroy();
+  impactChart = new Chart(document.getElementById('impactChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['High Impact', 'Medium Impact', 'Low Impact'],
+      datasets: [{
+        data: [counts.high, counts.medium, counts.low],
+        backgroundColor: ['#ef4444','#f97316','#eab308'],
+        borderColor: '#0d1a2b',
+        borderWidth: 3,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position:'bottom', labels: { padding: 15, usePointStyle:true } }
+      }
+    }
+  });
+}
+
+// ── Insights ─────────────────────────────────────────────────
+async function loadInsights() {
+  const cmp = await fetch('/api/prices/comparison?before=2022-01&after=2022-04').then(r=>r.json());
+  const container = document.getElementById('insights-list');
+  
+  const insights = [
+    { icon: '🛢️', text: 'Crude oil surged <strong>+50%</strong> after Russia invaded Ukraine in Feb 2022', type:'danger' },
+    { icon: '🌾', text: 'Wheat prices jumped <strong>+49%</strong> as Black Sea exports halted in Mar 2022', type:'warning' },
+    { icon: '🥇', text: 'Gold hit ₹72,000+/10g as investors fled to safe havens in Middle East crisis', type:'success' },
+    { icon: '⛽', text: 'Petrol crossed ₹112/litre across India during peak Russia-Ukraine tensions', type:'danger' },
+    { icon: '🫙', text: 'Edible oil (sunflower) rose 60%+ as Ukraine — world\'s top exporter — was disrupted', type:'warning' },
+    { icon: '🔥', text: 'Natural Gas hit 8-year high of $8.2/MMBtu after Russia cut Europe supply in 2022', type:'info' },
+  ];
+  
+  container.innerHTML = insights.map(ins => `
+    <div class="insight-item border-${ins.type}">
+      <span class="insight-icon">${ins.icon}</span>
+      <span class="insight-text">${ins.text}</span>
+    </div>
+  `).join('');
+  
+  // Add comparison data
+  if (cmp.data && cmp.data.length > 0) {
+    const topChange = cmp.data.sort((a,b) => Math.abs(b.change)-Math.abs(a.change))[0];
+    if (topChange) {
+      container.insertAdjacentHTML('afterbegin', `
+        <div class="insight-item border-danger mb-2">
+          <span class="insight-icon">📊</span>
+          <span class="insight-text"><strong>${topChange.commodity}</strong> saw the biggest war-period change: 
+            <span class="text-${topChange.change > 0 ? 'danger' : 'success'}">${topChange.change > 0 ? '+' : ''}${topChange.change}%</span>
+            (Jan→Apr 2022)</span>
+        </div>
+      `);
+    }
+  }
+}
+
+// ── News Preview ─────────────────────────────────────────────
+async function loadNewsPreview() {
+  const data = await fetch('/api/news').then(r=>r.json());
+  const container = document.getElementById('news-list');
+  if (!data.data.length) {
+    container.innerHTML = '<p class="text-muted">No news found.</p>';
+    return;
+  }
+  container.innerHTML = data.data.slice(0, 5).map(n => `
+    <div class="news-item">
+      <div class="news-meta">
+        <span class="news-conflict ${n.conflict === 'Russia-Ukraine' ? 'conflict-blue' : 'conflict-red'}">${n.conflict}</span>
+        <span class="news-date">${n.date}</span>
+        <span class="news-source">${n.source}</span>
+      </div>
+      <div class="news-title">${n.title}</div>
+      <div class="news-desc">${n.description.substring(0,120)}…</div>
+    </div>
+  `).join('');
+}
+
+// ── Trend commodity selector ─────────────────────────────────
+document.getElementById('trend-commodity').addEventListener('change', function() {
+  loadTrendChart(this.value);
+});
+
+// ── Init ─────────────────────────────────────────────────────
+loadDashboard();
+setInterval(loadDashboard, 2500); // Update every 2.5 seconds for stock-market feel
+setInterval(updateLiveIndicator, 1000); // Update live indicator every second
+loadTrendChart('Crude Oil');
+loadImpactChart();
+loadInsights();
+loadNewsPreview();
+</script>
+{% endblock %}

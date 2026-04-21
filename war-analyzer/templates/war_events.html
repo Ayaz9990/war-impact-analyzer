@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}War Events — War Impact Analyzer{% endblock %}
+{% block breadcrumb %}war-events{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">War Events Timeline</h2>
+    <p class="page-subtitle">Key geopolitical events mapped to commodity price impacts</p>
+  </div>
+  <div class="page-actions">
+    <button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addEventModal">
+      <i class="bi bi-plus-lg me-1"></i> Add Event
+    </button>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar mb-4">
+  <div class="filter-group">
+    <label>Impact:</label>
+    <div class="btn-group">
+      <button class="filter-pill active" onclick="filterEvents('', this)">All</button>
+      <button class="filter-pill danger" onclick="filterEvents('high', this)">High</button>
+      <button class="filter-pill warning" onclick="filterEvents('medium', this)">Medium</button>
+      <button class="filter-pill warning2" onclick="filterEvents('low', this)">Low</button>
+    </div>
+  </div>
+  <div class="filter-group">
+    <label>Conflict:</label>
+    <select class="form-select form-select-sm dark-select" id="conflict-filter" style="width:200px" onchange="loadEvents()">
+      <option value="">All Conflicts</option>
+      <option value="Russia-Ukraine">Russia-Ukraine</option>
+      <option value="Iran-Israel-USA">Iran-Israel-USA</option>
+    </select>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div class="timeline-container" id="timeline-container">
+  <div class="loading-placeholder">Loading events…</div>
+</div>
+
+<!-- Event Table -->
+<div class="table-card mt-4">
+  <div class="section-header mb-3">
+    <h5><i class="bi bi-table me-2"></i>All Events</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Event</th>
+          <th>Conflict</th>
+          <th>Impact</th>
+          <th>Description</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="events-tbody">
+        <tr><td colspan="6" class="text-center text-muted py-3">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Event Modal -->
+<div class="modal fade" id="addEventModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content dark-modal">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-plus me-2"></i>Add War Event</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Event Name</label>
+          <input type="text" class="form-control dark-input" id="ev-name" placeholder="e.g. Ceasefire Agreement">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-control dark-input" id="ev-date">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Conflict</label>
+          <select class="form-select dark-select" id="ev-conflict">
+            <option value="Russia-Ukraine">Russia-Ukraine</option>
+            <option value="Iran-Israel-USA">Iran-Israel-USA</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Impact Level</label>
+          <select class="form-select dark-select" id="ev-impact">
+            <option value="high">🔴 High</option>
+            <option value="medium" selected>🟠 Medium</option>
+            <option value="low">🟡 Low</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea class="form-control dark-input" id="ev-desc" rows="3" placeholder="Brief description of the event and its commodity impact…"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary-custom" id="save-event">Save Event</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFilter = '';
+
+function filterEvents(impact, btn) {
+  currentFilter = impact;
+  document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadEvents();
+}
+
+async function loadEvents() {
+  const impact   = currentFilter;
+  const conflict = document.getElementById('conflict-filter').value;
+  let url = '/api/war-events?';
+  if (impact)   url += `impact=${impact}&`;
+  if (conflict) url += `conflict=${conflict}`;
+
+  const d = await fetch(url).then(r => r.json());
+  renderTimeline(d.data);
+  renderTable(d.data);
+}
+
+function renderTimeline(events) {
+  const container = document.getElementById('timeline-container');
+  if (!events.length) {
+    container.innerHTML = '<p class="text-muted text-center py-3">No events found.</p>';
+    return;
+  }
+
+  container.innerHTML = events.map((e, i) => {
+    const impactClass  = e.impact === 'high' ? 'impact-high' : e.impact === 'medium' ? 'impact-medium' : 'impact-low';
+    const conflictClass = e.conflict === 'Russia-Ukraine' ? 'conflict-blue' : 'conflict-red';
+    const side = i % 2 === 0 ? 'left' : 'right';
+    return `
+      <div class="timeline-item ${side}">
+        <div class="timeline-dot ${impactClass}"></div>
+        <div class="timeline-content">
+          <div class="tl-meta">
+            <span class="news-conflict ${conflictClass}">${e.conflict}</span>
+            <span class="tl-date">${e.date}</span>
+            <span class="impact-badge ${impactClass}">${e.impact.toUpperCase()}</span>
+          </div>
+          <div class="tl-title">${e.event_name}</div>
+          <div class="tl-desc">${e.description || ''}</div>
+          <button class="btn-link-sm text-danger mt-1" onclick="deleteEvent(${e.id}, '${e.event_name.replace(/'/g,'\\\'')}')" >
+            <i class="bi bi-trash3 me-1"></i>Delete
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTable(events) {
+  const tbody = document.getElementById('events-tbody');
+  if (!events.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No events found.</td></tr>';
+    return;
+  }
+  const impactBadge = (imp) => {
+    const m = {high:'danger', medium:'warning', low:'secondary'};
+    return `<span class="badge bg-${m[imp]||'secondary'}">${imp.toUpperCase()}</span>`;
+  };
+  tbody.innerHTML = events.map(e => `
+    <tr>
+      <td class="font-mono text-muted">${e.date}</td>
+      <td><strong>${e.event_name}</strong></td>
+      <td><span class="news-conflict ${e.conflict==='Russia-Ukraine'?'conflict-blue':'conflict-red'}">${e.conflict}</span></td>
+      <td>${impactBadge(e.impact)}</td>
+      <td class="text-muted small" style="max-width:300px">${(e.description||'').substring(0,120)}${e.description&&e.description.length>120?'…':''}</td>
+      <td>
+        <button class="btn-icon-danger" onclick="deleteEvent(${e.id}, '${e.event_name.replace(/'/g,'\\\'')}')">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function deleteEvent(id, name) {
+  if (!confirm(`Delete event: "${name}"?`)) return;
+  const res = await fetch(`/api/war-events/${id}`, {method:'DELETE'});
+  if (res.ok) { showToast('Event deleted', 'success'); loadEvents(); }
+  else showToast('Delete failed', 'error');
+}
+
+// Save new event
+document.getElementById('save-event').addEventListener('click', async function() {
+  const name   = document.getElementById('ev-name').value.trim();
+  const date   = document.getElementById('ev-date').value;
+  const conf   = document.getElementById('ev-conflict').value;
+  const impact = document.getElementById('ev-impact').value;
+  const desc   = document.getElementById('ev-desc').value.trim();
+
+  if (!name || !date) return showToast('Name and date are required', 'warning');
+
+  const res = await fetch('/api/war-events', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({event_name: name, date, conflict: conf, impact, description: desc})
+  });
+  if (res.ok) {
+    showToast('Event added!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('addEventModal')).hide();
+    loadEvents();
+  } else {
+    showToast('Failed to add event', 'error');
+  }
+});
+
+loadEvents();
+</script>
+{% endblock %}
