@@ -98,9 +98,9 @@ def get_usd_inr_rate() -> float:
 #  REAL-TIME COMMODITY PRICES
 # ══════════════════════════════════════════════════════════════
 
-# Cache for commodity prices (5 minute TTL)
+# Cache for commodity prices (3 minute TTL for faster real-time updates in production)
 _commodity_cache = {}
-_COMMODITY_TTL = 5 * 60
+_COMMODITY_TTL = 3 * 60
 
 def get_real_time_commodity_prices():
     """Fetch real-time prices for commodities using multiple APIs with fallbacks."""
@@ -465,31 +465,6 @@ def fetch_real_time_war_news():
     if final_news:
         print(f"📰 Fetched {len(final_news)} war news articles from {len(set(n['source'] for n in final_news))} sources at {datetime.now().strftime('%H:%M:%S')}")
 
-    return final_news
-    
-    # Remove duplicates and sort by date
-    seen_titles = set()
-    unique_news = []
-    
-    for news in all_news:
-        title_key = news['title'].lower()[:50]  # First 50 chars as uniqueness key
-        if title_key not in seen_titles:
-            seen_titles.add(title_key)
-            unique_news.append(news)
-    
-    # Sort by published date (newest first)
-    unique_news.sort(key=lambda x: x.get('published_at', ''), reverse=True)
-    
-    # Limit to 50 most recent articles
-    final_news = unique_news[:50]
-    
-    # Update cache
-    _news_cache["news"] = final_news
-    _news_cache["fetched_at"] = now
-    
-    if final_news:
-        print(f"📰 Fetched {len(final_news)} war news articles at {datetime.now().strftime('%H:%M:%S')}")
-    
     return final_news
 
 def classify_conflict(text):
@@ -925,25 +900,35 @@ def get_live_trend_points(commodity, rate, limit=10):
 
 def update_prices_periodically():
     """Background thread to update live price datasets with real-time data and fetch news."""
-    real_time_update_counter = 0
-    news_update_counter = 0
+    snapshot_counter = 0
+    last_api_update = 0
+    last_news_update = 0
     
     while True:
         try:
-            # Update real-time prices every 5 minutes (300 seconds)
-            if real_time_update_counter % 300 == 0:
-                get_real_time_commodity_prices()
-                real_time_update_counter = 0
+            current_time = time.time()
             
-            # Update news every 15 minutes (900 seconds)
-            if news_update_counter % 900 == 0:
-                update_database_with_news()
-                news_update_counter = 0
+            # Update real-time prices every 3 minutes (180 seconds) for faster refresh in deployment
+            if current_time - last_api_update >= 180:
+                try:
+                    fresh_prices = get_real_time_commodity_prices()
+                    if fresh_prices:
+                        print(f"✅ Real-time prices refreshed: {len(fresh_prices)} commodities")
+                    last_api_update = current_time
+                except Exception as e:
+                    print(f"⚠️ Real-time API update failed: {e}")
             
-            # Generate live snapshots every second
+            # Update news every 10 minutes (600 seconds)
+            if current_time - last_news_update >= 600:
+                try:
+                    update_database_with_news()
+                    last_news_update = current_time
+                except Exception as e:
+                    print(f"⚠️ News update failed: {e}")
+            
+            # Generate live snapshots every 2 seconds for smoother updates
             append_live_snapshot()
-            real_time_update_counter += 1
-            news_update_counter += 1
+            snapshot_counter += 1
             
         except Exception as e:
             print(f"⚠️ Error updating data: {e}")
@@ -953,11 +938,11 @@ def update_prices_periodically():
             except Exception as e2:
                 print(f"⚠️ Fallback snapshot failed: {e2}")
         
-        time.sleep(1)
+        time.sleep(2)  # Reduced sleep time for faster updates
         
-        # Print status every 10 snapshots
-        if real_time_update_counter % 10 == 0:
-            print(f"🔄 Live update at {datetime.now().strftime('%H:%M:%S')}")
+        # Print status every 30 snapshots
+        if snapshot_counter % 30 == 0:
+            print(f"🔄 Live update at {datetime.now().strftime('%H:%M:%S')} | Snapshots: {len(LIVE_PRICE_DATASETS)}")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1663,16 +1648,12 @@ def api_exchange_rate():
 if __name__ == "__main__":
     init_db()
     initialize_live_price_datasets(10)
-    # Start background thread to update prices every 10 seconds
+    # Start background thread to update prices with real-time data
     updater_thread = threading.Thread(target=update_prices_periodically, daemon=True)
     updater_thread.start()
     port = int(os.environ.get("PORT", 5000))
-    print(f"🚀  War Impact Commodity Analyzer → http://localhost:{port}")
+    debug_mode = os.environ.get("DEBUG", "False").lower() == "true"
+    print(f"🚀  War Impact Commodity Analyzer → http://0.0.0.0:{port}")
     print(f"📊  Pages: Dashboard | Commodities | Price Trends | War Events | News | Predict")
-    app.run(debug=True, host="0.0.0.0", port=port)
-
-import os
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    print(f"🔄  Background thread: Updating prices every 2s, APIs every 3m, News every 10m")
+    app.run(debug=debug_mode, host="0.0.0.0", port=port, threaded=True)
